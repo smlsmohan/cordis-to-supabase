@@ -8,8 +8,8 @@ from supabase import create_client, Client
 # ===============================
 # CONFIG — set your Supabase creds
 # ===============================
-SUPABASE_URL = os.environ.get("SUPABASE_URL")       # e.g. "https://xxxx.supabase.co"
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")       # service role key
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 SUPABASE_TABLE = "cordis_projects"
 
 # Official CORDIS dataset URLs
@@ -18,6 +18,17 @@ CORDIS_URLS = {
     "h2020projects": "https://cordis.europa.eu/data/cordis-h2020projects-csv.zip",
     "fp7projects": "https://cordis.europa.eu/data/cordis-fp7projects-csv.zip"
 }
+
+# Columns allowed in Supabase table
+ALLOWED_COLUMNS = [
+    "id", "acronym", "status", "title", "objective", "startDate", "endDate",
+    "frameworkProgramme", "legalBasis", "masterCall", "subCall", "fundingScheme",
+    "ecMaxContribution", "totalCost",
+    "org_names", "coordinator_names", "org_countries",
+    "topics_codes", "topics_desc",
+    "euroSciVoc_labels", "euroSciVoc_codes",
+    "project_urls", "contentUpdateDate", "rcn", "grantDoi", "programmeSource"
+]
 
 # ===============================
 # Functions
@@ -32,7 +43,8 @@ def download_and_extract(url):
     return files
 
 def read_csv_bytes(data_bytes):
-    return pd.read_csv(io.BytesIO(data_bytes), sep=";", quotechar='"', low_memory=False, on_bad_lines="skip")
+    return pd.read_csv(io.BytesIO(data_bytes), sep=";", quotechar='"',
+                       low_memory=False, on_bad_lines="skip")
 
 def unique_join(values, sep=" | "):
     clean = []
@@ -72,14 +84,29 @@ def merge_programme(files, programme_label):
     flat["programmeSource"] = programme_label
     return flat
 
-def push_to_supabase(df: pd.DataFrame):
+def clean_for_supabase(df):
+    # Keep only allowed columns
+    df = df[[c for c in ALLOWED_COLUMNS if c in df.columns]]
+
+    # Convert dates to strings
+    for col in ["startDate", "endDate", "contentUpdateDate"]:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime('%Y-%m-%d')
+
+    # Replace NaN/NaT with None
+    df = df.where(pd.notnull(df), None)
+
+    return df
+
+def push_to_supabase(df: pd.DataFrame, batch_size=200):
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     data_dicts = df.to_dict(orient="records")
-    batch_size = 500  # Supabase limit
     for i in range(0, len(data_dicts), batch_size):
         batch = data_dicts[i:i+batch_size]
         print(f"Pushing batch {i//batch_size+1} ({len(batch)} rows)...")
-        supabase.table(SUPABASE_TABLE).upsert(batch).execute()
+        res = supabase.table(SUPABASE_TABLE).upsert(batch).execute()
+        if res.data is None:
+            print("Warning: Empty response from Supabase")
 
 # ===============================
 # Main pipeline
@@ -94,8 +121,9 @@ def main():
     final_df = pd.concat(all_dfs, ignore_index=True)
     print(f"Final merged dataset: {len(final_df)} rows, {len(final_df.columns)} columns")
 
-    # Push to Supabase
-    push_to_supabase(final_df)
+    # Clean and push
+    clean_df = clean_for_supabase(final_df)
+    push_to_supabase(clean_df)
 
 if __name__ == "__main__":
     main()
