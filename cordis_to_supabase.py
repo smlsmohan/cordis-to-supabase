@@ -8,8 +8,8 @@ from supabase import create_client, Client
 # ===============================
 # CONFIG — set your Supabase creds
 # ===============================
-SUPABASE_URL = os.environ.get("https://supabase.com/dashboard/project/bfbhbaipgbazdhghrjho")       # e.g. "https://xxxx.supabase.co"
-SUPABASE_KEY = os.environ.get("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmYmhiYWlwZ2JhemRoZ2hyamhvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDM4Mjk2MiwiZXhwIjoyMDY5OTU4OTYyfQ.DT9FjhijNE88DGb336z9cfOoiGQA0cRrlRzho_TU2Xs")       # service role key
+SUPABASE_URL = os.environ.get("SUPABASE_URL")       # e.g. "https://xxxx.supabase.co"
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")       # service role key
 SUPABASE_TABLE = "cordis_projects"
 
 # Official CORDIS dataset URLs
