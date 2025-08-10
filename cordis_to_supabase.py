@@ -194,7 +194,7 @@ def push_to_supabase(df: pd.DataFrame, batch_size: int = 100) -> None:
     exception is raised to halt the script.
     """
     supabase_url = os.environ.get("SUPABASE_URL")
-    supabase_key = os.environ.get("SUPABASE_KEY")
+    supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     if not supabase_url or not supabase_key:
         raise RuntimeError("Missing SUPABASE_URL or SUPABASE_KEY environment variables")
 
