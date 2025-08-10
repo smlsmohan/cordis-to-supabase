@@ -3,6 +3,8 @@ import io
 import zipfile
 import requests
 import pandas as pd
+import datetime
+import numpy as np
 from supabase import create_client, Client
 
 # ===============================
@@ -31,7 +33,7 @@ ALLOWED_COLUMNS = [
 ]
 
 # ===============================
-# Functions
+# Helper functions
 # ===============================
 
 def download_and_extract(url):
@@ -84,17 +86,33 @@ def merge_programme(files, programme_label):
     flat["programmeSource"] = programme_label
     return flat
 
+# JSON-safe sanitizer
+def sanitize_for_json(val):
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return None
+    if isinstance(val, (np.integer, int)):
+        return int(val)
+    if isinstance(val, (np.floating, float)):
+        return float(val)
+    if isinstance(val, (datetime.date, datetime.datetime, pd.Timestamp)):
+        return val.strftime('%Y-%m-%d')
+    return str(val)
+
 def clean_for_supabase(df):
     # Keep only allowed columns
-    df = df[[c for c in ALLOWED_COLUMNS if c in df.columns]]
+    df = df[[c for c in ALLOWED_COLUMNS if c in df.columns]].copy()
 
     # Convert dates to strings
     for col in ["startDate", "endDate", "contentUpdateDate"]:
         if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime('%Y-%m-%d')
+            df.loc[:, col] = pd.to_datetime(df[col], errors="coerce").dt.strftime('%Y-%m-%d')
 
-    # Replace NaN/NaT with None
+    # Replace NaN with None
     df = df.where(pd.notnull(df), None)
+
+    # Sanitize each cell for JSON
+    for col in df.columns:
+        df[col] = df[col].apply(sanitize_for_json)
 
     return df
 
@@ -104,9 +122,14 @@ def push_to_supabase(df: pd.DataFrame, batch_size=200):
     for i in range(0, len(data_dicts), batch_size):
         batch = data_dicts[i:i+batch_size]
         print(f"Pushing batch {i//batch_size+1} ({len(batch)} rows)...")
-        res = supabase.table(SUPABASE_TABLE).upsert(batch).execute()
-        if res.data is None:
-            print("Warning: Empty response from Supabase")
+        try:
+            res = supabase.table(SUPABASE_TABLE).upsert(batch).execute()
+            if res.data is None:
+                print("Warning: Empty response from Supabase for this batch")
+        except Exception as e:
+            print(f"❌ Error in batch {i//batch_size+1}: {e}")
+            print("First row in failing batch:", batch[0])
+            raise
 
 # ===============================
 # Main pipeline
