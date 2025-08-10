@@ -9,7 +9,7 @@ import numpy as np
 
 """
 cordis_to_supabase.py
-=====================
+====================
 
 This script downloads all of the publicly available CORDIS project data
 (Horizon Europe, Horizon 2020 and FP7), extracts the semicolon‑separated
@@ -198,7 +198,10 @@ def push_to_supabase(df: pd.DataFrame, batch_size: int = 100) -> None:
     if not supabase_url or not supabase_key:
         raise RuntimeError("Missing SUPABASE_URL or SUPABASE_KEY environment variables")
 
-    endpoint = f"{supabase_url}/rest/v1/{SUPABASE_TABLE}"
+    # Use on_conflict=id so PostgREST knows which column to use for upserts.
+    # Without this, a POST can be rejected with a 405 if the server
+    # doesn't know how to handle duplicates. See Supabase docs for details.
+    endpoint = f"{supabase_url}/rest/v1/{SUPABASE_TABLE}?on_conflict=id"
     headers = {
         "apikey": supabase_key,
         "Authorization": f"Bearer {supabase_key}",
@@ -212,7 +215,6 @@ def push_to_supabase(df: pd.DataFrame, batch_size: int = 100) -> None:
         print(f"Pushing batch {i // batch_size + 1} ({len(batch)} rows)...")
         resp = requests.post(endpoint, headers=headers, data=json.dumps(batch))
         if resp.status_code not in (200, 201, 204):
-            # Show a small portion of the response for debugging
             body_preview = resp.text[:1000]
             print(f"❌ Error {resp.status_code}: {body_preview}")
             print("First row in failing batch:", batch[0] if batch else None)
