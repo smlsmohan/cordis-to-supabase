@@ -1,0 +1,27 @@
+#!/bin/bash
+# filepath: /Users/mohan/Development/Projects/Mohan_Research/cordis-to-supabase/set_supabase_env.sh
+# Script to help set Supabase environment variables
+
+echo "🔐 Setting up Supabase Environment Variables"
+echo "============================================="
+echo ""
+echo "Please follow these steps:"
+echo ""
+echo "1. Go to https://supabase.com/dashboard"
+echo "2. Select your project"
+echo "3. Click Settings → API"
+echo "4. Copy your Project URL and service_role key"
+echo ""
+echo "Then run these commands (replace with your actual values):"
+echo ""
+echo "export SUPABASE_URL='https://your-project-id.supabase.co'"
+echo "export SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'"
+echo ""
+echo "⚠️  IMPORTANT: Use the 'service_role' key, NOT the 'anon public' key!"
+echo ""
+echo "To verify they're set correctly, run:"
+echo "echo \$SUPABASE_URL"
+echo "echo \$SUPABASE_KEY"
+echo ""
+echo "Or test with our scripts:"
+echo "python test_push_data.py"
